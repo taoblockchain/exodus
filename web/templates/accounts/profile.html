@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% load humanize %} 
+{% block content %}
+<style>
+  td {
+    font-size:8pt;
+  }
+  thead td {
+    font-size:10pt;
+    font-weight: bold;
+  }
+</style>
+  <div class="row">
+    <div class="col-md-4 text-right">
+      <strong>Tao 0x Address</strong>
+    </div>
+    <div class="col-md-6 text-left">
+      {{ request.user.username }}
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-4 text-right">
+      <strong>Migration Address</strong>
+    </div>
+    <div class="col-md-6 text-left">
+      <span id="copyTarget"></span>
+      <button id="copyButton" class="btn btn--primary type--uppercase">&nbsp;Copy&nbsp;</button>
+      <span id="msg"></span>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-4 text-right">
+      <strong>Tao 1.0 Received</strong>
+    </div>
+    <div class="col-md-6 text-left">
+            <span id="total_received"></span>
+
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-4 text-right">
+      <strong>Tao 2.0 Sent</strong>
+    </div>
+    <div class="col-md-6 text-left">
+      <span id="total_sent"></span>
+    </div>
+  </div>
+  <div class="row">
+    <p>&nbsp;</p>
+    <ul>
+    <li>Send your Tao 1.0 coins to the Migration Address above. Once the transaction appears in a block, your Tao tokens will be sent to the 0x address shown (which you provided when you created your account and used to login). </li>
+    <li>All migration transactions will be listed below once confirmed. You are welcome to sent 1 TAO first to test before sending your full amount.</li>
+    <li>If the amount you wish to send exceeds the balance in the hot wallet, please send an email to <a href="mailto:info@tao.network">info@tao.network</a> and additional funds will be added.</li>
+    <li>Hot wallet funds will automatically be replenished when the hot wallet contains less than 200k TAO.</li>
+    <li><strong>Thank you for supporting Tao Network!</strong></li>
+  </ul>
+    <p>&nbsp;</p>
+  </div>
+  <div class="row" id="radial">
+  </div>
+  <div class="row">
+    <p>Last Tao 1.0 Block: #<span id="last_block"></span> @ <span id="last_block_time"></span></p>
+  </div>
+  <div class="row">
+    <p>Total Tao 1.0 Money Supply: <span id="money_supply"></span> TAO</p>
+  </div>
+  <div class="row">
+    <p>Total Swapped: <span id="total_swapped"></span> TAO</p>
+  </div>
+  <div class="row">
+    <p>Swap hot wallet balance: <span id="hot_balance"></span> TAO</p>
+  </div>
+  <div class="row">
+    <p>Swap cold wallet balance: <span id="cold_balance"></span> TAO</p>
+  </div>
+  <div class="row">
+    Page will refresh in&nbsp;<span id="countdown"></span>&nbsp;seconds.
+    <p>&nbsp;</p>
+  </div>
+  <div class="row">
+    <p>&nbsp;</p>
+  </div>
+  <div class="row">
+    <p>&nbsp;</p>
+    <div class="col-md-12 text-center">
+      <h2>Transaction History</h2>
+    </div>
+    <div class="col-md-12">
+      <h3>Complete</h3>
+      <table id="sent">
+      </table>
+      <h3>Failed</h3>
+      <table id="unsent">
+      </table>
+    </div>
+  </div>
+  <link href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css" rel="stylesheet" type="text/css" media="all" />
+{% endblock content %}
+{% block javascript %}
+  {{ block.super }}
+<script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js" type="text/javascript" crossorigin="anonymous"></script>
+  <script>
+  document.getElementById("copyButton").addEventListener("click", function() {
+      copyToClipboardMsg(document.getElementById("copyTarget"), "msg");
+  });
+  function copyToClipboardMsg(elem, msgElem) {
+      var succeed = copyToClipboard(elem);
+      var msg;
+      if (!succeed) {
+          msg = "Copy not supported or blocked.  Press Ctrl+c to copy."
+      } else {
+          msg = "Copied!"
+      }
+      if (typeof msgElem === "string") {
+          msgElem = document.getElementById(msgElem);
+      }
+      msgElem.innerHTML = msg;
+      setTimeout(function() {
+          msgElem.innerHTML = "";
+      }, 2000);
+  }    
+  function copyToClipboard(elem) {
+      // create hidden text element, if it doesn't already exist
+      var targetId = "_hiddenCopyText_";
+      var isInput = elem.tagName === "INPUT" || elem.tagName === "TEXTAREA";
+      var origSelectionStart, origSelectionEnd;
+      if (isInput) {
+          // can just use the original source element for the selection and copy
+          target = elem;
+          origSelectionStart = elem.selectionStart;
+          origSelectionEnd = elem.selectionEnd;
+      } else {
+          // must use a temporary form element for the selection and copy
+          target = document.getElementById(targetId);
+          if (!target) {
+              var target = document.createElement("textarea");
+              target.style.position = "absolute";
+              target.style.left = "-9999px";
+              target.style.top = "0";
+              target.id = targetId;
+              document.body.appendChild(target);
+          }
+          target.textContent = elem.textContent;
+      }
+      // select the content
+      var currentFocus = document.activeElement;
+      target.focus();
+      target.setSelectionRange(0, target.value.length);
+      
+      // copy the selection
+      var succeed;
+      try {
+          succeed = document.execCommand("copy");
+      } catch(e) {
+          succeed = false;
+      }
+      // restore original focus
+      if (currentFocus && typeof currentFocus.focus === "function") {
+          currentFocus.focus();
+      }
+      
+      if (isInput) {
+          // restore prior selection
+          elem.setSelectionRange(origSelectionStart, origSelectionEnd);
+      } else {
+          // clear temporary content
+          target.textContent = "";
+      }
+      return succeed;
+  }
+  function getData(){
+    var url = window.location.href;
+    var arr = url.split("/");
+    this_url = arr[0] + "//" + arr[2];
+    $.ajax({
+            url: this_url + '/page_data_api/',
+            dataType: 'json',
+            success: function(data) {
+                //you can use jquery each to append all new articles
+                $.each(data, function(index, value) {
+                  if (document.getElementById(index))
+                    document.getElementById(index).innerHTML=value;
+                  if (index == 'percent_swapped'){
+                      document.getElementById('radial').innerHTML = '<div class="radial" id="perc" data-timing="1000" data-color="#4a90e2" data-size="200" data-bar-width="10"><span class="h3 radial__label"><span id="perc_"></span>% swapped</span></div>';
+                      document.getElementById('perc').setAttribute('data-value',value);
+                      document.getElementById('perc_').innerHTML = value;
+                  }
+                  if (index == 'transactions'){
+                    if (data.transactions.data.length > 0){
+                      sentTable.clear().rows.add(data.transactions.data).draw();                                          
+                    }
+                    if (data.unsent_transactions.data.length > 0){
+                      unsentTable.clear().rows.add(data.unsent_transactions.data).draw();                                          
+                    }
+                  }
+
+                });
+            },
+            error: function(data) { 
+                console.log('Houston, we have a problem!');
+            }
+    });    
+  }
+  (function countdown(remaining) {
+      if(remaining <= 0) {
+          getData();
+          remaining = 30;
+        }
+      document.getElementById('countdown').innerHTML = remaining;
+      setTimeout(function(){ countdown(remaining - 1); }, 1000);
+  })(30); 
+  getData(); 
+    sentTable = $('#sent').DataTable({
+        "paging":   false,
+        "ordering": false,
+        "info":     false,
+        columns: [
+            { title: "Tao 2.0 Amount" },
+            { title: "Tao 2.0 TXID" },
+            { title: "Tao 1.0 Amount" },
+            { title: "Tao 1.0 TXID" },
+          ],
+   });
+  unsentTable = $('#unsent').DataTable({
+        "paging":   false,
+        "ordering": false,
+        "info":     false,
+        columns: [
+            { title: "Tao 1.0 Amount" },
+            { title: "Tao 1.0 TXID" },
+          ],
+   });
+
+</script>
+{% endblock javascript %}

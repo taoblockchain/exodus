@@ -1,0 +1,49 @@
+FROM ubuntu:bionic
+
+RUN  apt-get update -y
+RUN  apt-get upgrade -y 
+RUN     apt-get install build-essential libtool automake autotools-dev autoconf pkg-config libgmp3-dev libevent-dev bsdmainutils git wget -y
+RUN     apt-get install libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-program-options-dev libboost-test-dev libboost-thread-dev -y
+RUN     apt remove libssl-dev -y
+RUN     apt-get install software-properties-common libminiupnpc-dev -y
+RUN add-apt-repository ppa:bitcoin/bitcoin -y
+RUN apt-get update -y
+RUN apt-get install libdb4.8-dev libdb4.8++-dev -y 
+
+RUN apt-get install -y build-essential cmake zlib1g-dev libcppunit-dev git subversion wget && rm -rf /var/lib/apt/lists/*
+RUN wget https://www.openssl.org/source/openssl-1.0.2g.tar.gz -O - | tar -xz
+WORKDIR /openssl-1.0.2g
+RUN ./config --prefix=/usr/local/openssl --openssldir=/usr/local/openssl && make && make install
+WORKDIR /
+RUN rm -rf /openssl-1.0.2g
+
+RUN wget http://sourceforge.net/projects/boost/files/boost/1.55.0/boost_1_55_0.tar.gz -O - | tar -xz
+WORKDIR /boost_1_55_0
+RUN ./bootstrap.sh --prefix=/usr/local/boost/1.55.0
+RUN ./b2 install b2 --with-chrono --with-filesystem --with-program_options --with-system --with-thread toolset=gcc stage
+WORKDIR /
+RUN rm -rf /boost_1_55_0
+
+RUN apt-get install software-properties-common
+RUN  apt-get update -y
+RUN apt-get -y install curl
+RUN wget https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh && chmod +x script.deb.sh && bash ./script.deb.sh
+RUN apt-get install git-lfs -y
+RUN git lfs install
+RUN git clone https://github.com/taoblockchain/tao-core.git /tao-core 
+WORKDIR tao-core/src 
+RUN make -f makefile.unix USE_PNP= OPENSSL_LIB_PATH=/usr/local/openssl/lib OPENSSL_INCLUDE_PATH=/usr/local/openssl/include BOOST_LIB_PATH=/usr/local/boost/1.55.0/lib BOOST_INCLUDE_PATH=/usr/local/boost/1.55.0/include STATIC=1 && strip taod
+RUN cp ./taod /usr/local/bin
+WORKDIR /
+RUN rm -rf /tao-core
+
+COPY docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENV GOSU_VERSION=1.10
+
+RUN curl -o /usr/local/bin/gosu -fSL https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-$(dpkg --print-architecture) \
+  && curl -o /usr/local/bin/gosu.asc -fSL https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-$(dpkg --print-architecture).asc \
+  && chmod +x /usr/local/bin/gosu
+
+ENTRYPOINT ["/entrypoint.sh"]

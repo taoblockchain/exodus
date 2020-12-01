@@ -1,0 +1,72 @@
+version: '3'
+services:
+  letsencrypt:
+    image: linuxserver/letsencrypt
+    container_name: letsencrypt
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - URL=exodus.tao.network
+      - SUBDOMAINS=
+      - VALIDATION=http
+      - DNSPLUGIN=gandi #optional
+      - EMAIL=<e-mail> #optional
+      - DHLEVEL=2048 #optional
+      - ONLY_SUBDOMAINS=false #optional
+      - STAGING=false #optional
+    volumes:
+      - ./config:/config
+    ports:
+      - 443:443
+      - 80:80 #optional
+    networks:
+      - internal
+    restart: unless-stopped
+  postgres:
+    image: 'postgres:latest'
+    hostname: postgres
+    expose:
+      - 5432
+    networks:
+      - internal
+    volumes:
+      - ./data/pg-data:/var/lib/postgresql/data
+    env_file:
+     - ./exodus.env
+  exodus:
+    image: 'exodus:latest'
+    container_name: exodus
+    command: bash -c "python manage.py migrate --no-input && python manage.py collectstatic --no-input && python manage.py runserver 0.0.0.0:8000 --insecure"
+    env_file:
+     - ./exodus.env
+    expose:
+      - 8000
+    restart: unless-stopped
+    networks:
+      - internal
+    depends_on:
+      - tao1node
+    links:
+      - tao1node:tao1node
+  tao1node:
+    image: tao1node:latest
+    container_name: tao1node
+    hostname: tao1node
+    env_file:
+     - ./exodus.env
+    volumes:
+      - ./blockchain:/blockchain
+      - ./data:/data
+    expose:
+      - 15151
+      - 15150
+    ports:
+      - 15159:15150
+    restart: unless-stopped
+    networks:
+      - internal
+networks:
+  internal:
