@@ -1,9 +1,10 @@
 Settings can be found in exodus.env.
 
 Run once and then configure nginx in ./config
-
+```
 docker build . -t exodus:latest 
 docker build . -t tao1node:latest -f Dockerfile.tao 
+```
 
 # Setup the blockchain data
 ```
@@ -18,4 +19,6 @@ chmod +x data/wallet_notify.sh
 ```
 
 # Runnit
+```
 docker-compose up
+```
